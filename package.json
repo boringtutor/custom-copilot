@@ -1,6 +1,6 @@
 {
-  "name": "custom-copilot",
-  "displayName": "custom-copilot",
+  "name": "microagent-copilot",
+  "displayName": "microagent-copilot",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -12,10 +12,28 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "micro-agent-chat",
+          "title": "MicroAgent Chat",
+          "icon": "resources/chat-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "micro-agent-chat": [
+        {
+          "type": "webview",
+          "id": "micro-agent-chat",
+          "name": "MicroAgent Chat"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "custom-copilot.helloWorld",
-        "title": "Hello World"
+        "command": "copilot.MicroAgent",
+        "title": "MicroAgent"
       }
     ]
   },
