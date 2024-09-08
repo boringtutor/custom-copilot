@@ -45,7 +45,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this._extensionUri],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    webviewView.webview.html = this._getHtmlForWebview();
 
     webviewView.webview.onDidReceiveMessage((data) => {
       switch (data.type) {
@@ -61,7 +61,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview) {
+  private _getHtmlForWebview() {
     return `
       <!DOCTYPE html>
       <html lang="en">
@@ -120,19 +120,29 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             border-radius: 4px;
           }
           #sendButton, #addButton {
-            padding: 10px;
+            padding: 8px;
             margin-left: 10px;
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
+            background-color: #4a4a4a;
+            color: #ffffff;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            transition: background-color 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
           }
+			#addButton {
+			 margin-right: 8px;
+			 margin-left: 3px;
+			}
           #sendButton:hover, #addButton:hover {
-            background-color: var(--vscode-button-hoverBackground);
+            background-color: #5a5a5a;
+          }
+          #sendButton svg, #addButton svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
           }
 				.chat-header {
 					display: flex;
@@ -160,25 +170,34 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             height: 16px;
             fill: currentColor;
           }
+          #sendButton svg, #addButton svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+          }
         </style>
       </head>
       <body>
         <div class="chat-container">
-		<header class="chat-header">
-			<h1> Welcome to MicroAgent Chat</h1>
-			<p>Ask anything about your code</p>
-			<p>You can add files to the context by clicking the + button</p>
-		</header>
+			<header class="chat-header">
+				<h1> Welcome to MicroAgent Chat</h1>
+				<p>Ask anything about your code</p>
+				<p>You can add files to the context by clicking the + button</p>
+			</header>
 
           <div id="chatArea"></div>
           <div class="input-area">
+		  <button id="addButton" title="Add item">
+			<svg viewBox="0 0 24 24">
+			  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+			</svg>
+		  </button>
             <input type="text" id="messageInput" placeholder="Type your message...">
-            <button id="addButton" title="Add item">
+            <button id="sendButton" title="Send message">
               <svg viewBox="0 0 24 24">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
               </svg>
             </button>
-            <button id="sendButton">Send</button>
           </div>
         </div>
 
