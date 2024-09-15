@@ -293,6 +293,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             }
           });
 
+
+          // NOTE: This is where we handle the message type that will be sent to add message
           window.addEventListener('message', event => {
             const message = event.data;
             console.log("Received message in WebView:", message);
