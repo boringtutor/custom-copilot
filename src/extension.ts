@@ -195,6 +195,21 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             font-size: 0.9em;
             opacity: 0.8;
           }
+          .code-container {
+            background-color: #1e1e1e;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow-x: auto;
+          }
+          .code-container pre {
+            margin: 0;
+            padding: 10px;
+          }
+          .code-container code {
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+          }
         </style>
       </head>
       <body>
@@ -246,11 +261,15 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             messageElement.appendChild(header);
 
             if (message.type === 'code' || message.type === 'test') {
+              const codeContainer = document.createElement('div');
+              codeContainer.classList.add('code-container');
+              
               const pre = document.createElement('pre');
               const code = document.createElement('code');
               code.textContent = content;
               pre.appendChild(code);
-              messageElement.appendChild(pre);
+              codeContainer.appendChild(pre);
+              messageElement.appendChild(codeContainer);
               
               if (message.type === 'test') {
                 // Add feedback buttons for test messages
