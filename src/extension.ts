@@ -56,10 +56,19 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this._getHtmlForWebview();
 
     webviewView.webview.onDidReceiveMessage((data) => {
+      console.log("Received message in extension:", data);
       switch (data.type) {
         case "sendMessage":
           this._gpt_context_window += data.value;
-          console.log("this._gpt_context_window", this._gpt_context_window);
+          console.log("Updated context window:", this._gpt_context_window);
+          // Add a response to the chat
+          this._view?.webview.postMessage({
+            type: "addMessage",
+            content: {
+              type: "admin",
+              content: "Message received: " + data.value,
+            },
+          });
           break;
         case "addItem":
           this.handleAddItem();
@@ -106,12 +115,30 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
           .user-message {
             background-color: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
-            align-self: flex-end;
+            align-self: flex-start;
           }
-          .assistant-message {
+          .admin-message, .code-message, .test-message {
             background-color: var(--vscode-editor-inactiveSelectionBackground);
             color: var(--vscode-editor-foreground);
-            align-self: flex-start;
+            align-self: flex-end;
+          }
+          .code-message pre, .test-message pre {
+            background-color: var(--vscode-textCodeBlock-background);
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+          }
+          .feedback {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 5px;
+          }
+          .feedback-button {
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 1.2em;
           }
           .input-area {
             display: flex;
@@ -182,6 +209,10 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             height: 16px;
             fill: currentColor;
           }
+          #chatArea {
+            display: flex;
+            flex-direction: column;
+          }
         </style>
       </head>
       <body>
@@ -216,11 +247,51 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
           const sendButton = document.getElementById('sendButton');
           const addButton = document.getElementById('addButton');
 
-          function addMessage(content, isUser) {
+          function addMessage(message) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message');
-            messageElement.classList.add(isUser ? 'user-message' : 'assistant-message');
-            messageElement.textContent = content;
+            
+            switch (message.type) {
+              case 'user':
+                messageElement.classList.add('user-message');
+                messageElement.textContent = message.content;
+                break;
+              case 'admin':
+                messageElement.classList.add('admin-message');
+                messageElement.textContent = message.content;
+                break;
+              case 'code':
+                messageElement.classList.add('code-message');
+                const pre = document.createElement('pre');
+                const code = document.createElement('code');
+                code.textContent = message.content;
+                pre.appendChild(code);
+                messageElement.appendChild(pre);
+                break;
+              case 'test':
+                messageElement.classList.add('test-message');
+                const testPre = document.createElement('pre');
+                const testCode = document.createElement('code');
+                testCode.textContent = message.content;
+                testPre.appendChild(testCode);
+                messageElement.appendChild(testPre);
+                
+                const feedbackDiv = document.createElement('div');
+                feedbackDiv.classList.add('feedback');
+                const thumbsUp = document.createElement('span');
+                thumbsUp.innerHTML = '👍';
+                thumbsUp.classList.add('feedback-button');
+                const thumbsDown = document.createElement('span');
+                thumbsDown.innerHTML = '👎';
+                thumbsDown.classList.add('feedback-button');
+                feedbackDiv.appendChild(thumbsUp);
+                feedbackDiv.appendChild(thumbsDown);
+                messageElement.appendChild(feedbackDiv);
+                break;
+              default:
+                messageElement.textContent = message.content;
+            }
+            console.log("messageElement", messageElement);
             chatArea.appendChild(messageElement);
             chatArea.scrollTop = chatArea.scrollHeight;
           }
@@ -228,8 +299,14 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
           sendButton.addEventListener('click', () => {
             const message = messageInput.value.trim();
             if (message) {
+              console.log("Sending message:", message);
+              let newMessage = {
+                type: 'user',
+                content: message,
+                timestamp: new Date(),
+              };
               vscode.postMessage({ type: 'sendMessage', value: message });
-              addMessage(message, true);
+              addMessage(newMessage);
               messageInput.value = '';
             }
           });
@@ -246,9 +323,15 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
           window.addEventListener('message', event => {
             const message = event.data;
+            console.log("Received message in WebView:", message);
             switch (message.type) {
               case 'addMessage':
-                addMessage(message.content, message.isUser);
+                let mymessage = {
+                  type: message.type,
+                  content: message.content,
+                  timestamp: new Date(),
+                };
+                addMessage(mymessage);
                 break;
               case 'updateMessage':
                 updateLastMessage(message.content);
