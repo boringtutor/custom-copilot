@@ -87,8 +87,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         <title>Savy Chat</title>
         <style>
           body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0;
             background-color: var(--vscode-editor-background);
             color: var(--vscode-editor-foreground);
@@ -105,41 +104,52 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             overflow-y: auto;
             padding: 20px;
             border-bottom: 1px solid var(--vscode-panel-border);
+            display: flex;
+            flex-direction: column;
           }
           .message {
             margin-bottom: 15px;
-            padding: 10px;
             border-radius: 8px;
             max-width: 80%;
+            max-height: 300px; /* Set a maximum height */
+            overflow-y: auto; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            border: 1px solid var(--vscode-input-border);
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
           }
-          .user-message {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            align-self: flex-start;
+          .message > *:not(.message-header) {
+            padding: 10px;
           }
-          .admin-message, .code-message, .test-message {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
+          .user-message { align-self: flex-start; }
+          .admin-message, .code-message, .test-message { align-self: flex-end; }
+          .message-header {
+            font-weight: bold;
+            margin-bottom: 5px;
             color: var(--vscode-editor-foreground);
-            align-self: flex-end;
+            background-color:var(--vscode-input-background) ;
+            padding: 2px 5px;
+            border-radius: 4px 4px 0 0;
+            display: block;
           }
           .code-message pre, .test-message pre {
-            background-color: var(--vscode-textCodeBlock-background);
             padding: 10px;
             border-radius: 4px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            
+            overflow-y: auto; 
           }
           .feedback {
             display: flex;
             justify-content: flex-end;
-            margin-top: 5px;
+            margin-top: 10px;
           }
           .feedback-button {
             cursor: pointer;
             margin-left: 10px;
             font-size: 1.2em;
+            transition: transform 0.1s ease-in-out;
           }
+          .feedback-button:hover { transform: scale(1.2); }
           .input-area {
             display: flex;
             padding: 10px;
@@ -162,75 +172,47 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
           }
-			#addButton {
-			 margin-right: 8px;
-			 margin-left: 3px;
-			}
-          #sendButton:hover, #addButton:hover {
-            background-color: #5a5a5a;
-          }
-          #sendButton svg, #addButton svg {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-          }
-				.chat-header {
-					display: flex;
-					flex-direction: column;
-					align-items: center;
-					justify-content: center;
-					padding: 20px 0;
-					background-color: var(--vscode-editor-background);
-					color: var(--vscode-editor-foreground);
-					text-align: center;
-					border-bottom: 1px solid var(--vscode-panel-border);
-				}
-				.chat-header h1 {
-					margin: 0 0 10px;
-					font-size: 1.5em;
-					font-weight: 600;
-				}
-				.chat-header p {
-					margin: 5px 0;
-					font-size: 0.9em;
-					opacity: 0.8;
-				}
-          #addButton svg {
-            width: 16px;
-            height: 16px;
-            fill: currentColor;
-          }
+          #addButton { margin-right: 8px; margin-left: 3px; }
+          #sendButton:hover, #addButton:hover { background-color: #5a5a5a; }
           #sendButton svg, #addButton svg {
             width: 16px;
             height: 16px;
             fill: currentColor;
           }
-          #chatArea {
-            display: flex;
-            flex-direction: column;
+          .chat-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--vscode-panel-border);
+          }
+          .chat-header h1 {
+            margin: 0 0 10px;
+            font-size: 1.5em;
+            font-weight: 600;
+          }
+          .chat-header p {
+            margin: 5px 0;
+            font-size: 0.9em;
+            opacity: 0.8;
           }
         </style>
       </head>
       <body>
         <div class="chat-container">
-			<header class="chat-header">
-				<h1> Welcome to MicroAgent Chat</h1>
-				<p>what kind of funciton you want me to create ? </p>
-				<p>You can add files to the context by clicking the + button</p>
-        <p>You can Type the your function in the input field and click send</p>
-			</header>
+          <header class="chat-header">
+            <h1> Welcome to MicroAgent Chat</h1>
+            <p>what kind of funciton you want me to create ? </p>
+            <p>You can add files to the context by clicking the + button</p>
+            <p>You can Type the your function in the input field and click send</p>
+          </header>
 
           <div id="chatArea"></div>
           <div class="input-area">
-		  <button id="addButton" title="Add item">
-			<svg viewBox="0 0 24 24">
-			  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-			</svg>
-		  </button>
+            <button id="addButton" title="Add item">
+              <svg viewBox="0 0 24 24">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+            </button>
             <input type="text" id="messageInput" placeholder="A function which...">
             <button id="sendButton" title="Send message">
               <svg viewBox="0 0 24 24">
@@ -249,49 +231,40 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
           function addMessage(message) {
             const messageElement = document.createElement('div');
-            messageElement.classList.add('message');
+            let type = message.type;
+            messageElement.classList.add('message', type+'-message');
+
             
-            switch (message.type) {
-              case 'user':
-                messageElement.classList.add('user-message');
-                messageElement.textContent = message.content;
-                break;
-              case 'admin':
-                messageElement.classList.add('admin-message');
-                messageElement.textContent = message.content;
-                break;
-              case 'code':
-                messageElement.classList.add('code-message');
-                const pre = document.createElement('pre');
-                const code = document.createElement('code');
-                code.textContent = message.content;
-                pre.appendChild(code);
-                messageElement.appendChild(pre);
-                break;
-              case 'test':
-                messageElement.classList.add('test-message');
-                const testPre = document.createElement('pre');
-                const testCode = document.createElement('code');
-                testCode.textContent = message.content;
-                testPre.appendChild(testCode);
-                messageElement.appendChild(testPre);
-                
+            let content = typeof message.content === 'object' ? message.content.content : message.content;
+            
+            // Always add a header
+            const header = document.createElement('div');
+            header.classList.add('message-header');
+            header.textContent = message.type === 'code' ? 'Generated Code' : 
+                                 message.type === 'test' ? 'Generated Test' : 
+                                 message.type === 'user' ? 'User' : 'Assistant';
+            messageElement.appendChild(header);
+
+            if (message.type === 'code' || message.type === 'test') {
+              const pre = document.createElement('pre');
+              const code = document.createElement('code');
+              code.textContent = content;
+              pre.appendChild(code);
+              messageElement.appendChild(pre);
+              
+              if (message.type === 'test') {
+                // Add feedback buttons for test messages
                 const feedbackDiv = document.createElement('div');
                 feedbackDiv.classList.add('feedback');
-                const thumbsUp = document.createElement('span');
-                thumbsUp.innerHTML = '👍';
-                thumbsUp.classList.add('feedback-button');
-                const thumbsDown = document.createElement('span');
-                thumbsDown.innerHTML = '👎';
-                thumbsDown.classList.add('feedback-button');
-                feedbackDiv.appendChild(thumbsUp);
-                feedbackDiv.appendChild(thumbsDown);
+                feedbackDiv.innerHTML = '<span class="feedback-button" title="This test looks good">👍</span><span class="feedback-button" title="This test needs improvement">👎</span>';
                 messageElement.appendChild(feedbackDiv);
-                break;
-              default:
-                messageElement.textContent = message.content;
+              }
+            } else {
+              const contentDiv = document.createElement('div');
+              contentDiv.textContent = content;
+              messageElement.appendChild(contentDiv);
             }
-            console.log("messageElement", messageElement);
+            
             chatArea.appendChild(messageElement);
             chatArea.scrollTop = chatArea.scrollHeight;
           }
@@ -305,7 +278,6 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                 content: message,
                 timestamp: new Date(),
               };
-              vscode.postMessage({ type: 'sendMessage', value: message });
               addMessage(newMessage);
               messageInput.value = '';
             }
@@ -333,6 +305,21 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
                 };
                 addMessage(mymessage);
                 break;
+              case 'test':
+                addMessage({
+                  type: 'test',
+                  content: message.content,
+                  timestamp: new Date(),
+                });
+                break;
+              case 'code':
+                addMessage({
+                  type: 'code',
+                  content: message.content,
+                  timestamp: new Date(),
+                });
+                break;
+              
               case 'updateMessage':
                 updateLastMessage(message.content);
                 break;
@@ -414,8 +401,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
           );
         } else {
           this._view?.webview.postMessage({
-            type: "addMessage",
-            content: `Got the test = ${result}`,
+            type: "test",
+            content: `${result}`,
           });
         }
       }
