@@ -78,139 +78,21 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview() {
+    const scriptUri = this._view?.webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, "src", "chat-script.js")
+    );
+    const stylesUri = this._view?.webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, "src", "styles.css")
+    );
+
     return `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Savy Chat</title>
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 0;
-            background-color: var(--vscode-editor-background);
-            color: var(--vscode-editor-foreground);
-          }
-          .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            max-width: 800px;
-            margin: 0 auto;
-          }
-          #chatArea {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 20px;
-            border-bottom: 1px solid var(--vscode-panel-border);
-            display: flex;
-            flex-direction: column;
-          }
-          .message {
-            margin-bottom: 15px;
-            border-radius: 8px;
-            max-width: 80%;
-            max-height: 300px; /* Set a maximum height */
-            overflow-y: auto; 
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-            border: 1px solid var(--vscode-input-border);
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-          }
-          .message > *:not(.message-header) {
-            padding: 10px;
-          }
-          .user-message { align-self: flex-start; }
-          .admin-message, .code-message, .test-message { align-self: flex-end; }
-          .message-header {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: var(--vscode-editor-foreground);
-            background-color:var(--vscode-input-background) ;
-            padding: 2px 5px;
-            border-radius: 4px 4px 0 0;
-            display: block;
-          }
-          .code-message pre, .test-message pre {
-            padding: 10px;
-            border-radius: 4px;
-            
-            overflow-y: auto; 
-          }
-          .feedback {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 10px;
-          }
-          .feedback-button {
-            cursor: pointer;
-            margin-left: 10px;
-            font-size: 1.2em;
-            transition: transform 0.1s ease-in-out;
-          }
-          .feedback-button:hover { transform: scale(1.2); }
-          .input-area {
-            display: flex;
-            padding: 10px;
-            background-color: var(--vscode-editor-background);
-          }
-          #messageInput {
-            flex-grow: 1;
-            padding: 10px;
-            border: 1px solid var(--vscode-input-border);
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border-radius: 4px;
-          }
-          #sendButton, #addButton {
-            padding: 8px;
-            margin-left: 10px;
-            background-color: #4a4a4a;
-            color: #ffffff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-          }
-          #addButton { margin-right: 8px; margin-left: 3px; }
-          #sendButton:hover, #addButton:hover { background-color: #5a5a5a; }
-          #sendButton svg, #addButton svg {
-            width: 16px;
-            height: 16px;
-            fill: currentColor;
-          }
-          .chat-header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--vscode-panel-border);
-          }
-          .chat-header h1 {
-            margin: 0 0 10px;
-            font-size: 1.5em;
-            font-weight: 600;
-          }
-          .chat-header p {
-            margin: 5px 0;
-            font-size: 0.9em;
-            opacity: 0.8;
-          }
-          .code-container {
-            background-color: #1e1e1e;
-            border: 1px solid #4a4a4a;
-            border-radius: 4px;
-            margin-top: 5px;
-            overflow-x: auto;
-          }
-          .code-container pre {
-            margin: 0;
-            padding: 10px;
-          }
-          .code-container code {
-            color: #ffffff;
-            font-family: 'Courier New', Courier, monospace;
-          }
-        </style>
+        <title>Chat View</title>
+        <link rel="stylesheet" href="${stylesUri}">
       </head>
       <body>
         <div class="chat-container">
@@ -235,125 +117,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
               </svg>
             </button>
           </div>
-        </div>
-
-        <script>
-          const vscode = acquireVsCodeApi();
-          const chatArea = document.getElementById('chatArea');
-          const messageInput = document.getElementById('messageInput');
-          const sendButton = document.getElementById('sendButton');
-          const addButton = document.getElementById('addButton');
-
-          function addMessage(message) {
-            const messageElement = document.createElement('div');
-            let type = message.type;
-            messageElement.classList.add('message', type+'-message');
-
-            
-            let content = typeof message.content === 'object' ? message.content.content : message.content;
-            
-            // Always add a header
-            const header = document.createElement('div');
-            header.classList.add('message-header');
-            header.textContent = message.type === 'code' ? 'Generated Code' : 
-                                 message.type === 'test' ? 'Generated Test' : 
-                                 message.type === 'user' ? 'User' : 'Assistant';
-            messageElement.appendChild(header);
-
-            if (message.type === 'code' || message.type === 'test') {
-              const codeContainer = document.createElement('div');
-              codeContainer.classList.add('code-container');
-              
-              const pre = document.createElement('pre');
-              const code = document.createElement('code');
-              code.textContent = content;
-              pre.appendChild(code);
-              codeContainer.appendChild(pre);
-              messageElement.appendChild(codeContainer);
-              
-              if (message.type === 'test') {
-                // Add feedback buttons for test messages
-                const feedbackDiv = document.createElement('div');
-                feedbackDiv.classList.add('feedback');
-                feedbackDiv.innerHTML = '<span class="feedback-button" title="This test looks good">👍</span><span class="feedback-button" title="This test needs improvement">👎</span>';
-                messageElement.appendChild(feedbackDiv);
-              }
-            } else {
-              const contentDiv = document.createElement('div');
-              contentDiv.textContent = content;
-              messageElement.appendChild(contentDiv);
-            }
-            
-            chatArea.appendChild(messageElement);
-            chatArea.scrollTop = chatArea.scrollHeight;
-          }
-
-          sendButton.addEventListener('click', () => {
-            const message = messageInput.value.trim();
-            if (message) {
-              console.log("Sending message:", message);
-              let newMessage = {
-                type: 'user',
-                content: message,
-                timestamp: new Date(),
-              };
-              addMessage(newMessage);
-              messageInput.value = '';
-            }
-          });
-
-          addButton.addEventListener('click', () => {
-            vscode.postMessage({ type: 'addItem' });
-          });
-
-          messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-              sendButton.click();
-            }
-          });
-
-
-          // NOTE: This is where we handle the message type that will be sent to add message
-          window.addEventListener('message', event => {
-            const message = event.data;
-            console.log("Received message in WebView:", message);
-            switch (message.type) {
-              case 'addMessage':
-                let mymessage = {
-                  type: message.type,
-                  content: message.content,
-                  timestamp: new Date(),
-                };
-                addMessage(mymessage);
-                break;
-              case 'test':
-                addMessage({
-                  type: 'test',
-                  content: message.content,
-                  timestamp: new Date(),
-                });
-                break;
-              case 'code':
-                addMessage({
-                  type: 'code',
-                  content: message.content,
-                  timestamp: new Date(),
-                });
-                break;
-              
-              case 'updateMessage':
-                updateLastMessage(message.content);
-                break;
-            }
-          });
-
-          function updateLastMessage(content) {
-            const lastMessage = chatArea.lastElementChild;
-            if (lastMessage) {
-              lastMessage.textContent = content;
-            }
-          }
-        </script>
+          </div>
+          
+          <script src="${scriptUri}"></script>
       </body>
       </html>
     `;
