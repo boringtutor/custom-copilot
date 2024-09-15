@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import MyAgent from "./microagent/agent";
+import { safeAwait } from "./microagent/helpers/helpers";
+import { Message, MessageType } from "./microagent/types/misc";
+import OpenAI from "openai";
 
 export function activate(context: vscode.ExtensionContext) {
   const provider = new ChatViewProvider(context.extensionUri);
@@ -26,11 +30,15 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "micro-agent-chat";
 
   private _view?: vscode.WebviewView;
-
-  // we gono use this to send it to chat gpt to get the answer
   private _gpt_context_window = "";
+  private _openai: OpenAI;
+
   constructor(private readonly _extensionUri: vscode.Uri) {
     this._gpt_context_window = "";
+    this._openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY, // Make sure to set this environment variable
+    });
+    // console.log("this._openai", this._openai);
   }
 
   public resolveWebviewView(
@@ -50,9 +58,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((data) => {
       switch (data.type) {
         case "sendMessage":
-          vscode.window.showInformationMessage(
-            `Received message: ${data.value}`
-          );
+          this._gpt_context_window += data.value;
+          console.log("this._gpt_context_window", this._gpt_context_window);
           break;
         case "addItem":
           this.handleAddItem();
@@ -181,8 +188,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         <div class="chat-container">
 			<header class="chat-header">
 				<h1> Welcome to MicroAgent Chat</h1>
-				<p>Ask anything about your code</p>
+				<p>what kind of funciton you want me to create ? </p>
 				<p>You can add files to the context by clicking the + button</p>
+        <p>You can Type the your function in the input field and click send</p>
 			</header>
 
           <div id="chatArea"></div>
@@ -192,7 +200,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 			  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
 			</svg>
 		  </button>
-            <input type="text" id="messageInput" placeholder="Type your message...">
+            <input type="text" id="messageInput" placeholder="A function which...">
             <button id="sendButton" title="Send message">
               <svg viewBox="0 0 24 24">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
@@ -242,8 +250,18 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
               case 'addMessage':
                 addMessage(message.content, message.isUser);
                 break;
+              case 'updateMessage':
+                updateLastMessage(message.content);
+                break;
             }
           });
+
+          function updateLastMessage(content) {
+            const lastMessage = chatArea.lastElementChild;
+            if (lastMessage) {
+              lastMessage.textContent = content;
+            }
+          }
         </script>
       </body>
       </html>
@@ -288,18 +306,50 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         );
         //TODO: we are going to use this content when we send the code to the llm with the question
         // we gono create the context window
-        const content = Buffer.from(fileContent).toString("utf8");
+        const content: string = Buffer.from(fileContent).toString("utf8");
 
-        this._gpt_context_window += `\n\n${content}`;
+        const fileUri = vscode.Uri.file(selectedItem.description!);
+        console.log("about to call the agent");
 
-        this._view?.webview.postMessage({
-          type: "addMessage",
-          content: `Added the file -> ${selectedItem.label}`,
-          isUser: false,
-        });
+        const loadingInterval = this.sendLoadingMessage();
+        const [result, error] = await safeAwait(
+          MyAgent({
+            prompt:
+              this._gpt_context_window === ""
+                ? "A funciton that generate console log and says call the function with the request to generate test and function"
+                : this._gpt_context_window,
+            fileContent: content,
+            fileUri: fileUri,
+          })
+        );
+        clearInterval(loadingInterval);
+        console.log("result is -> ", result);
+        console.warn("error is -> ", error);
+        if (error) {
+          vscode.window.showErrorMessage(
+            `Error Generating the test -> ${selectedItem.label}: ${error}`
+          );
+        } else {
+          this._view?.webview.postMessage({
+            type: "addMessage",
+            content: `Got the test = ${result}`,
+          });
+        }
       }
     });
 
     quickPick.show();
+  }
+
+  private sendLoadingMessage() {
+    let dots = "";
+    const interval = setInterval(() => {
+      dots = dots.length < 3 ? dots + "." : "";
+      this._view?.webview.postMessage({
+        type: "updateMessage",
+        content: `Generating the test for the function${dots} please wait`,
+      });
+    }, 500);
+    return interval;
   }
 }
